@@ -51,6 +51,9 @@ import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 import org.koin.android.ext.android.inject
 import java.io.File
+import android.media.MediaPlayer
+import android.net.Uri
+
 
 class ForegroundService : LifecycleService() {
 
@@ -59,6 +62,9 @@ class ForegroundService : LifecycleService() {
         MutableSharedFlow(replay = 1),
         lifecycleScope
     )
+
+    private var mediaPlayer: MediaPlayer? = null
+    private var currentTrackUri: Uri? = null
 
     private val fetcher: FetchPlatformQueryResult by inject()
     private val logger: Kermit by inject()
@@ -78,6 +84,24 @@ class ForegroundService : LifecycleService() {
         }
         PendingIntent.getService(this, 0, intent, flags)
     }
+
+    private fun initializeMediaPlayer() {
+        mediaPlayer = MediaPlayer().apply {
+            setWakeMode(applicationContext, PowerManager.PARTIAL_WAKE_LOCK)
+            setOnPreparedListener {
+                // MediaPlayer is prepared, start playback
+                it.start()
+            }
+            setOnCompletionListener {
+                // Track playback completed, you can handle this event as needed
+            }
+            setOnErrorListener { _, what, extra ->
+                // Handle any errors during playback here
+                return@setOnErrorListener false
+            }
+        }
+    }
+
 
     /* Variables Holding Download State */
     private var total = 0
@@ -242,7 +266,19 @@ class ForegroundService : LifecycleService() {
                         removeFromNotification(Message(track.title, DownloadStatus.Downloading()))
                     }
                 }
+
             }
+        }
+        currentTrackUri = Uri.fromFile(File(dir.defaultDir(), "YourTrackFileName.mp3"))
+        initializeMediaPlayer()
+
+        try {
+            currentTrackUri?.let { uri ->
+                mediaPlayer?.setDataSource(applicationContext, uri)
+                mediaPlayer?.prepareAsync()
+            }
+        } catch (e: Exception) {
+            // Handle any exceptions during MediaPlayer setup
         }
     }
 
@@ -301,6 +337,8 @@ class ForegroundService : LifecycleService() {
                 stopSelf()
             }
         }
+        mediaPlayer?.release()
+        mediaPlayer = null
     }
 
     private fun resetVar() {

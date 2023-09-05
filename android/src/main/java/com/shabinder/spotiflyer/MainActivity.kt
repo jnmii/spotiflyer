@@ -19,6 +19,7 @@ package com.shabinder.spotiflyer
 import android.annotation.SuppressLint
 import android.content.*
 import android.content.pm.PackageManager
+import android.media.MediaPlayer
 import android.media.MediaScannerConnection
 import android.net.Uri
 import android.os.Build
@@ -86,7 +87,8 @@ import java.io.File
 
 @OptIn(ExperimentalAnimationApi::class)
 class MainActivity : ComponentActivity() {
-
+    private var mediaPlayer: MediaPlayer? = null
+    private var currentTrackUri: Uri? = null
     private val fetcher: FetchPlatformQueryResult by inject()
     private val fileManager: FileManager by inject()
     private val preferenceManager: PreferenceManager by inject()
@@ -107,6 +109,10 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+
+
+
         preferenceManager.analyticsManager = analyticsManager
         // This app draws behind the system bars, so we want to handle fitting system windows
         WindowCompat.setDecorFitsSystemWindows(window, false)
@@ -165,7 +171,25 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+        initializeMediaPlayer()
         initialise()
+    }
+
+    private fun initializeMediaPlayer() {
+        mediaPlayer = MediaPlayer().apply {
+            setWakeMode(applicationContext, PowerManager.PARTIAL_WAKE_LOCK)
+            setOnPreparedListener {
+                // MediaPlayer is prepared, start playback
+                it.start()
+            }
+            setOnCompletionListener {
+                // Track playback completed, you can handle this event as needed
+            }
+            setOnErrorListener { _, what, extra ->
+                // Handle any errors during playback here
+                return@setOnErrorListener false
+            }
+        }
     }
 
     private fun initialise() {
